@@ -8,9 +8,9 @@ import (
 	"lims_auth_service/internal/service"
 )
 
-func SetupRoutes(app *fiber.App, db *gorm.DB) {
+func SetupRoutes(app *fiber.App, db *gorm.DB, jwtSecret string) {
 	repo := repository.NewUserRepository(db)
-	authService := service.NewAuthService(repo)
+	authService := service.NewAuthService(repo, jwtSecret)
 
 	api := app.Group("/api/v1")
 	api.Post("/register", func(c *fiber.Ctx) error {
@@ -30,6 +30,26 @@ func SetupRoutes(app *fiber.App, db *gorm.DB) {
 		}
 
 		return c.Status(fiber.StatusCreated).JSON(fiber.Map{"message": "User successfully created!"})
+	})
+
+	api.Post("/login", func(c *fiber.Ctx) error {
+		var body struct {
+			Email    string `json:"email" binding:"required"`
+			Password string `json:"password" binding:"required"`
+		}
+
+		if err := c.BodyParser(&body); err != nil {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid request"})
+		}
+
+		tokenData, err := authService.Login(body.Email, body.Password)
+		if err != nil {
+			return c.Status(fiber.StatusConflict).JSON(fiber.Map{"error": err.Error()})
+		}
+
+		return c.JSON(fiber.Map{
+			"token": tokenData,
+		})
 	})
 
 	api.Get("/", func(c *fiber.Ctx) error {
