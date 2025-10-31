@@ -4,6 +4,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"gorm.io/gorm"
 	"lims_auth_service/internal/dto"
+	"lims_auth_service/internal/middleware"
 	"lims_auth_service/internal/repository"
 	"lims_auth_service/internal/service"
 )
@@ -49,6 +50,20 @@ func SetupRoutes(app *fiber.App, db *gorm.DB, jwtSecret string) {
 
 		return c.JSON(fiber.Map{
 			"token": tokenData,
+		})
+	})
+
+	api.Get("/me", middleware.JWTProtected(jwtSecret), func(c *fiber.Ctx) error {
+		email := c.Locals("email").(string)
+		user, err := repo.GetByEmail(email)
+		if err != nil {
+			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "user not found"})
+		}
+
+		return c.JSON(fiber.Map{
+			"id":        user.ID,
+			"email":     user.Email,
+			"is_active": user.IsActive,
 		})
 	})
 
