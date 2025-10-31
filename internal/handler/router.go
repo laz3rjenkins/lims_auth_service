@@ -21,9 +21,7 @@ func SetupRoutes(app *fiber.App, db *gorm.DB) {
 		}
 
 		if body.Email == "" ||
-			body.Password == "" ||
-			body.FirstName == "" ||
-			body.LastName == "" {
+			body.Password == "" {
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "email and password required"})
 		}
 
@@ -31,7 +29,7 @@ func SetupRoutes(app *fiber.App, db *gorm.DB) {
 			return c.Status(fiber.StatusConflict).JSON(fiber.Map{"error": err.Error()})
 		}
 
-		return c.Status(fiber.StatusCreated).JSON(fiber.Map{"message": "user created"})
+		return c.Status(fiber.StatusCreated).JSON(fiber.Map{"message": "User successfully created!"})
 	})
 
 	api.Get("/", func(c *fiber.Ctx) error {
