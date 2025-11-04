@@ -66,16 +66,16 @@ func (s *AuthService) Login(email, password string) (string, string, error) {
 }
 
 func generateToken(userId uint, email, secret string, exp int64) (string, error) {
-	refreshTokenClaims := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+	tokenClaims := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"user_id": userId,
 		"email":   email,
 		"exp":     exp,
 	})
 
-	token, err := refreshTokenClaims.SignedString([]byte(secret))
+	token, err := tokenClaims.SignedString([]byte(secret))
 	if err != nil {
 		return "", err
 	}
-	
+
 	return token, nil
 }
