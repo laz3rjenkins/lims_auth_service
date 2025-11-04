@@ -13,12 +13,13 @@ import (
 )
 
 type AuthService struct {
-	Repo      *repository.UserRepository
-	jwtSecret string
+	Repo             *repository.UserRepository
+	jwtAccessSecret  string
+	jwtRefreshSecret string
 }
 
-func NewAuthService(repo *repository.UserRepository, jwtSecret string) *AuthService {
-	return &AuthService{Repo: repo, jwtSecret: jwtSecret}
+func NewAuthService(repo *repository.UserRepository, jwtAccessSecret, jwtRefreshSecret string) *AuthService {
+	return &AuthService{Repo: repo, jwtAccessSecret: jwtAccessSecret, jwtRefreshSecret: jwtRefreshSecret}
 }
 
 func (s *AuthService) Register(body dto.RegisterRequest) error {
@@ -33,34 +34,48 @@ func (s *AuthService) Register(body dto.RegisterRequest) error {
 	return s.Repo.CreateUser(user)
 }
 
-func (s *AuthService) Login(email, password string) (string, error) {
+func (s *AuthService) Login(email, password string) (string, string, error) {
 	var errorMessage = "Incorrect email or password"
 
 	// проверка существования пользователя в системе
 	user, err := s.Repo.GetByEmail(email)
 	if err != nil {
-		return "", fmt.Errorf(errorMessage)
+		return "", "", fmt.Errorf(errorMessage)
 	}
 
 	// проверка пароля
 	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password)); err != nil {
-		return "", errors.New(errorMessage)
+		return "", "", errors.New(errorMessage)
 	}
 
 	if user.IsActive == false {
-		return "", errors.New("User is not active")
+		return "", "", errors.New("User is not active")
 	}
 
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"user_id": user.ID,
-		"email":   user.Email,
-		"exp":     time.Now().Add(time.Hour * 72).Unix(),
+	accessToken, err := generateToken(user.ID, user.Email, s.jwtAccessSecret, time.Now().Add(time.Hour*72).Unix())
+	if err != nil {
+		return "", "", err
+	}
+
+	refreshToken, err := generateToken(user.ID, user.Email, s.jwtRefreshSecret, time.Now().Add(7*24*time.Hour).Unix())
+	if err != nil {
+		return "", "", err
+	}
+
+	return accessToken, refreshToken, nil
+}
+
+func generateToken(userId uint, email, secret string, exp int64) (string, error) {
+	refreshTokenClaims := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+		"user_id": userId,
+		"email":   email,
+		"exp":     exp,
 	})
 
-	tokenString, err := token.SignedString([]byte(s.jwtSecret))
+	token, err := refreshTokenClaims.SignedString([]byte(secret))
 	if err != nil {
 		return "", err
 	}
-
-	return tokenString, nil
+	
+	return token, nil
 }

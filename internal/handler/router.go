@@ -9,9 +9,9 @@ import (
 	"lims_auth_service/internal/service"
 )
 
-func SetupRoutes(app *fiber.App, db *gorm.DB, jwtSecret string) {
+func SetupRoutes(app *fiber.App, db *gorm.DB, jwtAccessSecret, jwtRefreshSecret string) {
 	repo := repository.NewUserRepository(db)
-	authService := service.NewAuthService(repo, jwtSecret)
+	authService := service.NewAuthService(repo, jwtAccessSecret, jwtRefreshSecret)
 
 	api := app.Group("/api/v1")
 	api.Post("/register", func(c *fiber.Ctx) error {
@@ -43,17 +43,22 @@ func SetupRoutes(app *fiber.App, db *gorm.DB, jwtSecret string) {
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid request"})
 		}
 
-		tokenData, err := authService.Login(body.Email, body.Password)
+		accessToken, refreshToken, err := authService.Login(body.Email, body.Password)
 		if err != nil {
 			return c.Status(fiber.StatusConflict).JSON(fiber.Map{"error": err.Error()})
 		}
 
 		return c.JSON(fiber.Map{
-			"token": tokenData,
+			"access_token":  accessToken,
+			"refresh_token": refreshToken,
 		})
 	})
 
-	api.Get("/me", middleware.JWTProtected(jwtSecret), func(c *fiber.Ctx) error {
+	api.Post("/refresh", func(c *fiber.Ctx) error {
+		return nil
+	})
+
+	api.Get("/me", middleware.JWTProtected(jwtAccessSecret), func(c *fiber.Ctx) error {
 		email := c.Locals("email").(string)
 		user, err := repo.GetByEmail(email)
 		if err != nil {

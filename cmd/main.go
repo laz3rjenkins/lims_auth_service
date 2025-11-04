@@ -30,8 +30,9 @@ func main() {
 
 	db := database.InitDB(dbName, username, password)
 
-	jwtSecret := os.Getenv("JWT_SECRET")
-	handler.SetupRoutes(app, db, jwtSecret)
+	jwtAccessSecret := os.Getenv("JWT_ACCESS_SECRET")
+	jwtRefreshSecret := os.Getenv("JWT_REFRESH_SECRET")
+	handler.SetupRoutes(app, db, jwtAccessSecret, jwtRefreshSecret)
 
 	err = app.Listen(":3000")
 	if err != nil {
